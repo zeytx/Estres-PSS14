@@ -1,0 +1,81 @@
+/* Estilos generales */
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Estilos para preguntas */
+.question-group {
+    margin-bottom: 15px;
+}
+
+.question-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+/* Estilos para resultados */
+.stress-level {
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.stress-level.bajo {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.stress-level.moderado {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.stress-level.alto {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Secciones de análisis */
+.analysis-section, .recommendations-section, .patterns-section {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 5px;
+}
+
+/* Botones */
+button, .print-btn, .home-link {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 10px 15px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+button:hover, .print-btn:hover, .home-link:hover {
+    background: #0056b3;
+}
+
+/* Estado de carga */
+#loadingIndicator, #loadingResults {
+    display: none;
+    padding: 10px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    margin-bottom: 20px;
+}
