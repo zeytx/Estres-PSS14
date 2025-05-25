@@ -3,7 +3,7 @@
 ## Autor
 © 2025 Alvaro Nuñez Jesus
 
-Este proyecto ha sido desarrollado completamente por Alvaro Nuñez Jesus como parte de un proyecto del curso de capstone para el análisis de estrés basado en la escala PSS-14. Se contó con material de investigación inicial proporcionado por Johnatan Casana.
+Este proyecto fue desarrollado íntegramente por Alvaro Nuñez Jesus como parte del curso de capstone. La fase inicial de investigación contó con aportes documentales de Johnatan Casana.
 
 ## Descripción
 Este sistema implementa una aplicación web para la evaluación y análisis del estrés utilizando el cuestionario PSS-14 (Perceived Stress Scale). La aplicación incluye un modelo de machine learning para predecir niveles de estrés basado en las respuestas del usuario y su información demográfica.
@@ -24,7 +24,7 @@ Este sistema implementa una aplicación web para la evaluación y análisis del 
 ## Licencia
 Todos los derechos reservados. Este código es propiedad intelectual de Alvaro Nuñez Jesus y no está disponible para uso, copia, modificación o distribución sin autorización explícita por escrito.
 
-Se ha otorgado permiso específico a Johnatan Casana para utilizar este sistema como parte de nuestro proyecto conjunto de capstone.
+**Nota:** Se ha otorgado un permiso limitado a Johnatan Casana para hacer referencia a este sistema únicamente en el contexto del proyecto académico compartido. El desarrollo técnico y funcional fue realizado en su totalidad por Alvaro Nuñez Jesus.
 
 ## Contacto
 - GitHub: zeytx
