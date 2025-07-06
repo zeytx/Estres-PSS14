@@ -4,7 +4,9 @@ import shutil
 import sqlite3
 from turtle import pd
 from venv import logger
-from flask import Flask, request, jsonify, render_template, redirect, send_from_directory, url_for
+from flask import Flask, request, jsonify, render_template, redirect, send_from_directory, url_for, session, abort
+from itsdangerous import URLSafeTimedSerializer
+import secrets
 from flask_cors import CORS
 from database import save_to_db, init_db, get_test_results
 from csv_handler import save_to_csv
@@ -27,6 +29,14 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
+app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))  # Clave secreta para sesiones
+token_serializer = URLSafeTimedSerializer(app.secret_key)
+
+
+# Nuevas configuraciones
+app.config['JSON_AS_ASCII'] = False  # Para caracteres especiales
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True  # Para debugging
+
 os.makedirs('../datos', exist_ok=True)
 os.makedirs('../modelos', exist_ok=True)
 os.makedirs('../logs', exist_ok=True)
@@ -40,6 +50,52 @@ try:
         print(f"Entrenamiento del modelo: {result}")
 except Exception as e:
     print(f"Error entrenando modelo: {str(e)}")
+
+
+
+# Configuración de tokens estáticos
+STATIC_TOKEN = None
+STATIC_TOKEN_EXPIRATION = 3600  # 1 hora en segundos
+token_timer = None  # Variable para controlar el timer
+
+def init_static_token():
+    global STATIC_TOKEN, token_timer
+    STATIC_TOKEN = secrets.token_urlsafe(32)
+    logger.info(f"Token estático inicial generado")
+    token_timer = threading.Timer(STATIC_TOKEN_EXPIRATION, renew_static_token)
+    token_timer.daemon = True  # ← ESTO ES CLAVE
+    token_timer.start()
+
+def renew_static_token():
+    global STATIC_TOKEN, token_timer
+    STATIC_TOKEN = secrets.token_urlsafe(32)
+    logger.info(f"Token estático renovado (válido por {STATIC_TOKEN_EXPIRATION}s)")
+    token_timer = threading.Timer(STATIC_TOKEN_EXPIRATION, renew_static_token)
+    token_timer.daemon = True  # ← ESTO ES CLAVE
+    token_timer.start()
+
+def shutdown_tokens():
+    """Función para cancelar timers al cerrar la aplicación"""
+    global token_timer
+    if token_timer:
+        token_timer.cancel()
+        logger.info("Timer de tokens cancelado")
+
+# Llamar al inicio de la aplicación
+init_static_token()
+
+
+
+# Ruta protegida para archivos estáticos
+@app.context_processor
+def inject_static_token():
+    def generate_static_url(filename):
+        return f'/protected-static/{filename}?token={STATIC_TOKEN}'
+    return {'generate_static_url': generate_static_url}
+
+# Generador de URLs protegidas
+def get_protected_static_url(filename):
+    return f'/protected-static/{filename}?token={STATIC_TOKEN}'
 
 # Añade este endpoint para hacer predicciones
 @app.route('/api/predict-stress', methods=['POST'])
@@ -58,6 +114,55 @@ def predict_stress():
     )
     
     return jsonify(prediction)
+
+@app.route('/api/generate-new-token/<int:test_id>', methods=['GET'])
+def generate_new_token(test_id):
+    # AÑADIR ESTAS VALIDACIONES:
+    logger.info(f"Solicitud de nuevo token para test_id: {test_id} desde IP: {request.remote_addr}")
+    
+    # 1. Verificar que el test existe
+    test_data = get_test_results(test_id)
+    if not test_data:
+        logger.warning(f"Intento de generar token para test inexistente: {test_id} desde IP: {request.remote_addr}")
+        return jsonify({
+            'success': False,
+            'error': 'Test no encontrado'
+        }), 404
+    
+    # 2. Rate limiting básico (opcional)
+    # Evitar spam de generación de tokens
+    
+    # 3. Validar origen de la petición
+    referrer = request.headers.get('Referer')
+    if not referrer or not any(allowed in referrer for allowed in ['localhost', '127.0.0.1', 'tu-dominio.com']):
+        return jsonify({
+            'success': False,
+            'error': 'Origen no autorizado'
+        }), 403
+    
+    # 4. Verificar que no hay un token reciente (opcional)
+    # Para evitar generar tokens innecesarios
+    
+    try:
+        # Generar nuevo token
+        token = token_serializer.dumps({'test_id': test_id})
+        
+        # Log de seguridad
+        logger.info(f"Nuevo token generado para test_id: {test_id}")
+        
+        return jsonify({
+            'success': True,
+            'new_token': token,
+            'new_url': f'/results/{test_id}?token={token}',
+            'expires_in': 86400  # 24 horas en segundos
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generando token: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }), 500
 
 # Verificar que la API key está cargada
 api_key = os.getenv("OPENAI_API_KEY")
@@ -79,16 +184,35 @@ def index():
 
 @app.route('/results/<int:test_id>')
 def results(test_id):
-    # Obtener resultados básicos de la base de datos
+    # Verificar el token
+    token = request.args.get('token')
+    if not token:
+        logger.warning(f"Intento de acceso sin token a test_id: {test_id} desde IP: {request.remote_addr}")
+        abort(403, description="Acceso no autorizado: token requerido")
+    
+    try:
+        # Verificar el token (válido por 24 horas)
+        token_data = token_serializer.loads(token, max_age=86400)
+        if token_data['test_id'] != test_id:
+            logger.warning(f"Token inválido para test_id: {test_id} desde IP: {request.remote_addr}")
+            abort(403, description="Token inválido para este test")
+    except:
+        # Log de token expirado o malformado
+        logger.warning(f"Token inválido/expirado para test_id: {test_id} desde IP: {request.remote_addr} - Error: {str(e)}")
+        abort(403, description="Token inválido o expirado")
+    
+    # Obtener datos del test
     test_data = get_test_results(test_id)
     if not test_data:
+        logger.warning(f"Test no encontrado test_id: {test_id} desde IP: {request.remote_addr}")
         return redirect(url_for('index'))
-    # Obtener análisis GPT (sincrónico para asegurar que tenemos los datos)
+    
     try:
         analysis = gpt_analyzer.analyze_test(test_id)
+        logger.info(f"Análisis GPT cargado exitosamente para test_id: {test_id}")
     except Exception as e:
+        logger.error(f"Error cargando análisis GPT para test_id: {test_id} - Error: {str(e)}")
         analysis = {"error": str(e)}
-    
     
     return render_template(
         'results.html',
@@ -96,15 +220,22 @@ def results(test_id):
         stress_level=test_data['stress_level'],
         age=test_data['age'],
         profession=test_data['profession'],
-        analysis=analysis  # Pasar el análisis completo al template
+        analysis=analysis
     )
 
 @app.route('/api/submit-test', methods=['POST'])
 def submit_test():
+    # Log de inicio de envío
+    logger.info(f"Nuevo test enviado desde IP: {request.remote_addr}")
     data = request.json
     
     try:
         # Validación básica
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No se recibieron datos'
+            }), 400
         if len(data['responses']) != 14:
             return jsonify({
                 'success': False,
@@ -170,16 +301,19 @@ def submit_test():
                 print(f"Error en análisis GPT: {str(e)}")
 
         threading.Thread(target=gpt_analysis_background).start()
+        # Generar token de un solo uso
+        token = token_serializer.dumps({'test_id': test_id})
         
         return jsonify({
             'success': True,
             'test_id': test_id,
             'stress_level': stress_level,
             'ml_prediction': ml_prediction,  # Devolver también la predicción
-            'redirect_url': f'/results/{test_id}'
+            'redirect_url': f'/results/{test_id}?token={token}'
         })
         
     except Exception as e:
+        print(f"Error en submit_test: {str(e)}")  # Para debugging
         return jsonify({
             'success': False,
             'error': str(e)
@@ -188,11 +322,80 @@ def submit_test():
 
 # Proteger contra hotlinking
 @app.before_request
+@app.before_request
 def check_referrer():
     if request.path.startswith('/protected-static/'):
         referrer = request.headers.get("Referer")
-        if not referrer or not referrer.startswith(request.host_url):
-            return "Acceso no autorizado", 403
+        
+        # Debug: mostrar información del referrer
+        logger.debug(f"Acceso a {request.path} - Referrer: {referrer} - Host: {request.host}")
+        
+        # Permitir acceso si:
+        # 1. No hay referrer (acceso directo)
+        # 2. El referrer viene del mismo host
+        # 3. El referrer viene de localhost/127.0.0.1
+        if referrer:
+            allowed_hosts = [
+                request.host,  # Host actual de la petición
+                'localhost:5000',
+                '127.0.0.1:5000',
+                'localhost',
+                '127.0.0.1'
+            ]
+            
+            # Verificar si el referrer viene de un host permitido
+            referrer_valid = any(
+                allowed_host in referrer 
+                for allowed_host in allowed_hosts
+            )
+            
+            if not referrer_valid:
+                logger.warning(f"Referrer no válido: {referrer} - Host esperado: {request.host}")
+                return "Acceso no autorizado", 403
+        
+        # Si llegamos aquí, el referrer es válido o no existe
+        return None
+
+# NUEVO ENDPOINT - Añadir aquí
+@app.route('/protected-static/<filename>')
+def protected_static(filename):
+    """Servir archivos estáticos con protección por token mejorada"""
+    # Verificar token
+    token = request.args.get('token')
+    if not token or token != STATIC_TOKEN:
+        logger.warning(f"Token inválido para archivo estático: {filename} - IP: {request.remote_addr}")
+        abort(403)
+    
+    # Lista blanca de archivos permitidos con tipos MIME
+    allowed_files = {
+        'app.js': 'application/javascript',
+        'style.css': 'text/css'
+    }
+    
+    if filename not in allowed_files:
+        logger.warning(f"Archivo no permitido: {filename} - IP: {request.remote_addr}")
+        abort(404)
+    
+    try:
+        # Verificar que el archivo existe
+        static_dir = os.path.join(app.root_path, 'static')
+        file_path = os.path.join(static_dir, filename)
+        
+        if not os.path.exists(file_path):
+            logger.error(f"Archivo no encontrado: {filename}")
+            abort(404)
+        
+        # Servir con tipo MIME correcto
+        response = send_from_directory('static', filename)
+        response.headers['Content-Type'] = allowed_files[filename]
+        response.headers['Cache-Control'] = 'private, max-age=3600'  # Cache por 1 hora
+        
+        logger.info(f"Archivo servido exitosamente: {filename} - IP: {request.remote_addr}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error sirviendo archivo {filename}: {str(e)}")
+        abort(500)
     
 @app.route('/api/get-analysis/<int:test_id>', methods=['GET'])
 def get_analysis(test_id):
@@ -208,6 +411,21 @@ def get_trends():
     profession = request.args.get('profession')
     trends = gpt_analyzer.get_stress_trends(profession)
     return jsonify(trends)
+
+# Manejo global de errores
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        'success': False,
+        'error': 'Error interno del servidor'
+    }), 500
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'success': False,
+        'error': 'Endpoint no encontrado'
+    }), 404
 
 if __name__ == '__main__':
     try:

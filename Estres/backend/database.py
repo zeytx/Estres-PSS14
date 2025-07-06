@@ -1,6 +1,20 @@
+import re
 import sqlite3
 from datetime import datetime
 import os
+
+
+def clean_profession_input(profession):
+    """Versión simplificada ya que las profesiones vienen predefinidas"""
+    if not isinstance(profession, str):
+        return 'unknown'
+    
+    # Solo normalización básica
+    profession = profession.strip().title()
+    
+    return profession if len(profession) >= 2 else 'unknown'
+
+
 
 def init_db(db_path='../datos/pss_database.db'):
     """Inicializa la base de datos"""

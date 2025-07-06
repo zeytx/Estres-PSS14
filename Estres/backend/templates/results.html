@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resultados de Test de Estrés</title>
     <!-- Enlace al CSS protegido -->
-     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ generate_static_url('style.css') }}">
     <style>
         /* Estilos críticos iniciales inline */
         body { 
@@ -29,6 +29,6 @@
         <a href="/" class="home-link">Volver al inicio</a>
     </div>
     <!-- Script protegido -->
-    <script src="/static/app.js"></script>
+    <script src="{{ generate_static_url('app.js') }}"></script>
 </body>
 </html>

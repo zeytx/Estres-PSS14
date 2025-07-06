@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Test de Estrés PSS-14</title>
-     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ generate_static_url('style.css') }}">
     <style>
         /* Estilos críticos iniciales inline */
         body { 
@@ -57,7 +57,9 @@
             
             <div class="form-group">
                 <label for="profession">Profesión:</label>
-                <input type="text" id="profession" name="profession" required>
+                <div id="professionContainer">
+                    <!-- El select se generará aquí por JavaScript -->
+                </div>
             </div>
             
             <div id="questionsContainer">
@@ -68,7 +70,7 @@
         </form>
     </div>
     
-    <script src="/static/app.js"></script>
+    <script src="{{ generate_static_url('app.js') }}"></script>
     
 </body>
 </html>
