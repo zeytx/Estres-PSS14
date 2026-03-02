@@ -315,6 +315,12 @@ const StressForm = () => {
                     </form>
                 </div>
             </div>
+            {/* Footer discreto */}
+            <footer className="text-center py-6 mt-8">
+                <p className="text-gray-300 text-xs">
+                    © 2025-2026 PSS-14 Stress Predictor — <a href="/admin" className="text-gray-400 hover:text-gray-500 transition-colors">Alvaro Nunez</a>
+                </p>
+            </footer>
         </div>
     );
 };

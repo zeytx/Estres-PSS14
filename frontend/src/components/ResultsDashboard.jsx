@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { getTestResults } from '../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
-import { Loader2, AlertTriangle, ShieldCheck, Activity, Brain, Heart } from 'lucide-react';
+import { Loader2, AlertTriangle, ShieldCheck, Activity, Brain, Heart, RotateCcw } from 'lucide-react';
 
 const ResultsDashboard = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
+    const navigate = useNavigate();
 
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -225,6 +226,20 @@ const ResultsDashboard = () => {
                         </p>
                     </div>
                 )}
+
+                {/* Botón Repetir Test */}
+                <div className="flex flex-col items-center gap-4 pt-4 pb-8">
+                    <button
+                        onClick={() => navigate('/')}
+                        className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl"
+                    >
+                        <RotateCcw className="h-5 w-5" />
+                        Realizar otro test
+                    </button>
+                    <p className="text-gray-400 text-sm">
+                        Tus resultados anteriores quedan guardados de forma segura.
+                    </p>
+                </div>
             </div>
         </div>
     );
