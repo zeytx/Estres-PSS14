@@ -409,7 +409,7 @@ function AdminDashboard({ onLogout }) {
                           </span>
                         </td>
                         <td className="px-4 py-3 font-mono text-purple-300">{test.ml_score ? test.ml_score.toFixed(1) : '—'}</td>
-                        <td className="px-4 py-3 text-xs text-white/40">{test.timestamp?.split('T')[0] || test.timestamp?.split(' ')[0]}</td>
+                        <td className="px-4 py-3 text-xs text-white/40">{test.timestamp ? new Date(test.timestamp).toLocaleString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '—'}</td>
                       </tr>
                     );
                   })}
