@@ -4,15 +4,15 @@ services:
     runtime: python
     region: oregon
     plan: free
+    rootDir: .
     buildCommand: |
-      cd frontend && npm install && npm run build && cd ..
       pip install -r backend/requirements.txt
-    startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120
+      curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs || true
+      cd frontend && npm install && npm run build && cd ..
+    startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --timeout 300 --workers 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.6
-      - key: NODE_VERSION
-        value: 20
       - key: OPENAI_API_KEY
         sync: false
       - key: FLASK_SECRET_KEY
