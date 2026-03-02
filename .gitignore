@@ -1,0 +1,59 @@
+# === Secretos y credenciales ===
+backend/variable.env
+variable.env
+.env
+*.env
+firebase-key.json
+firebase-credentials.json
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+ENV/
+.venv/
+*.egg-info/
+
+# === Node.js ===
+node_modules/
+frontend/node_modules/
+
+# === Logs ===
+logs/*.log
+
+# === Caché y datos temporales ===
+modelos/prediction_cache.joblib
+modelos/historico/
+modelos/shap_importance.csv
+
+# === Base de datos local (Firebase en producción) ===
+datos/pss_database.db
+identifier.sqlite
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Jupyter ===
+.ipynb_checkpoints
+
+# === Frontend build (se genera en deploy) ===
+frontend/dist/
+dist/
+build/
+
+# === Análisis locales ===
+backend/analisis/
+backend/limpieza_datos/
+backend/outputs/
+outputs/

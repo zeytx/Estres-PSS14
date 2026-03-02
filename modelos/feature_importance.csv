@@ -1,0 +1,90 @@
+Feature,Importance
+perceived_self_efficacy,0.44110492
+efficacy_squared,0.22681122
+perceived_helplessness,0.12536915
+helplessness_squared,0.084009
+coherence_score,0.05177147
+q_14,0.03539495
+min_inverted_item,0.012337261
+q_6,0.0027831208
+response_variance,0.0024299046
+q_2,0.0022819564
+q_10,0.0022443691
+age_x_helplessness,0.0019074051
+age_x_efficacy,0.0014856175
+q_11,0.0014741425
+q_1,0.001284043
+q_9,0.0012228435
+extreme_response_count,0.001064628
+q_12,0.00096408074
+helplessness_efficacy_ratio,0.00089357805
+q_3,0.00072945753
+max_direct_item,0.00062791724
+profession_Estudiante,0.0003817949
+q_7,0.00027236334
+age,0.00025697978
+high_stress_item_count,0.0001651946
+profession_Administrador,0.00012475273
+q_5,0.00012124592
+q_8,0.00011945383
+q_4,0.000117546595
+q_13,0.00011492017
+profession_Ingeniero De  Sistemas,7.329665e-05
+profession_Ingeniero,6.138079e-05
+profession_Diseñador,0.0
+profession_Enfermero,0.0
+profession_Enfermera,0.0
+profession_Electricista,0.0
+profession_Economista,0.0
+profession_Desarrollador De  Software,0.0
+profession_Chef,0.0
+profession_Cajero,0.0
+profession_Biólogo,0.0
+profession_Agricultor,0.0
+profession_Bibliotecario,0.0
+profession_Asistente,0.0
+profession_Arquitecto,0.0
+profession_Abogado,0.0
+profession_Administrativo,0.0
+profession_Desarrollador,0.0
+profession_Creador,0.0
+profession_Compositor,0.0
+profession_Contador,0.0
+profession_Consultor,0.0
+profession_Comunicación,0.0
+profession_Cardiólogo,0.0
+profession_Ingeniero  Aeronáutico,0.0
+profession_Ing  Pesquero,0.0
+profession_Físico,0.0
+profession_Programador,0.0
+profession_Profesor,0.0
+profession_Politólogo,0.0
+profession_Policía,0.0
+profession_Piloto De  Aeronaves,0.0
+profession_Pescador,0.0
+profession_Periodista,0.0
+profession_Odontólogo,0.0
+profession_Nose,0.0
+profession_No  Sé  Todavía,0.0
+profession_Médico  General,0.0
+profession_Mecánico,0.0
+profession_Masoterapeuta,0.0
+profession_Ingeniero En  Telecomunicacion,0.0
+profession_Ingeniero En  Computación,0.0
+profession_Ingeniero De  Software,0.0
+profession_Ingeniero  Pesquero,0.0
+profession_Ingeniero  Naval,0.0
+profession_Ingeniero  Metalúrgico,0.0
+profession_Ingeniero  Mecatrónico,0.0
+profession_Ingeniero  Genético,0.0
+profession_Ingeniero  Industrial,0.0
+profession_Ingeniero  Electrónico,0.0
+profession_Ingeniero  Civil,0.0
+profession_Ingenieria,0.0
+profession_Ingeniero  Biomédico,0.0
+profession_Ingeniero  Automotriz,0.0
+profession_Técnico,0.0
+profession_Técnico  Electricista,0.0
+profession_Recepcionista,0.0
+profession_Psicólogo,0.0
+profession_Psicología,0.0
