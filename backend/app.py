@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, render_template, redirect, send_from_
 from itsdangerous import URLSafeTimedSerializer
 import secrets
 from flask_cors import CORS
-from database import save_to_db, init_db, get_test_results
+from firebase_config import save_to_db, init_db, get_test_results, USE_FIREBASE
 from csv_handler import save_to_csv
 from gpt_integration import GPTStressAnalyzer
 import os
@@ -333,19 +333,29 @@ def submit_test():
             try:
                 analysis = gpt_analyzer.analyze_with_gpt(gpt_input)
                 
-                # Guardar análisis completo con context manager
-                with sqlite3.connect('../datos/pss_database.db') as conn:
-                    c = conn.cursor()
-                    c.execute('''UPDATE tests SET 
-                              gpt_analysis = ?,
-                              ml_score = ?,
-                              ml_stress_level = ?
-                              WHERE test_id = ?''',
-                             (json.dumps(analysis),
-                              ml_prediction['predicted_score'],
-                              ml_prediction['predicted_stress_level'],
-                              test_id))
-                    conn.commit()
+                if USE_FIREBASE:
+                    from firebase_config import FirestoreDatabase
+                    fb = FirestoreDatabase()
+                    fb.update_test(test_id, {
+                        'gpt_analysis': analysis,
+                        'ml_score': ml_prediction['predicted_score'],
+                        'ml_stress_level': ml_prediction['predicted_stress_level'],
+                        'analysis_timestamp': datetime.now().isoformat()
+                    })
+                else:
+                    # Fallback: SQLite
+                    with sqlite3.connect('../datos/pss_database.db') as conn:
+                        c = conn.cursor()
+                        c.execute('''UPDATE tests SET 
+                                  gpt_analysis = ?,
+                                  ml_score = ?,
+                                  ml_stress_level = ?
+                                  WHERE test_id = ?''',
+                                 (json.dumps(analysis),
+                                  ml_prediction['predicted_score'],
+                                  ml_prediction['predicted_stress_level'],
+                                  test_id))
+                        conn.commit()
 
             except Exception as e:
                 print(f"Error en análisis GPT: {str(e)}")

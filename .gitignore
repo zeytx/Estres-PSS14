@@ -5,6 +5,7 @@ variable.env
 *.env
 firebase-key.json
 firebase-credentials.json
+backend/firebase_oneline.txt
 
 # === Python ===
 __pycache__/

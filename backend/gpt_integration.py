@@ -11,6 +11,12 @@ import re
 import time
 from pss_scoring import INVERTED_INDICES, DIRECT_INDICES
 
+# Detectar si Firebase está disponible
+try:
+    from firebase_config import USE_FIREBASE, FirestoreDatabase
+except ImportError:
+    USE_FIREBASE = False
+
 try:
     from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
     HAS_TENACITY = True
@@ -30,6 +36,9 @@ class GPTStressAnalyzer:
 
     def _initialize_db(self):
         """Crea las tablas necesarias si no existen."""
+        if USE_FIREBASE:
+            print("Usando Firebase Firestore — tablas SQLite no necesarias")
+            return
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -62,7 +71,32 @@ class GPTStressAnalyzer:
             print(f"Error inicializando base de datos: {str(e)}")
 
     def _get_test_data(self, test_id: int) -> Optional[Dict]:
-        """Obtiene los datos de un test específico desde SQLite."""
+        """Obtiene los datos de un test específico desde Firebase o SQLite."""
+        if USE_FIREBASE:
+            try:
+                fb = FirestoreDatabase()
+                test_full = fb.get_test_full(test_id)
+                if not test_full:
+                    return None
+                # Extraer respuestas del documento embebido
+                responses_raw = test_full.get('responses', [])
+                original_values = [r.get('original_value', 0) for r in responses_raw]
+                processed_values = [r.get('processed_value', 0) for r in responses_raw]
+                return {
+                    "test_id": test_id,
+                    "age": test_full.get('age'),
+                    "profession": test_full.get('profession'),
+                    "score": test_full.get('total_score'),
+                    "stress_level": test_full.get('stress_level'),
+                    "timestamp": test_full.get('timestamp'),
+                    "free_text": test_full.get('free_text'),
+                    "responses": original_values,
+                    "processed_responses": processed_values
+                }
+            except Exception as e:
+                logging.error(f"Error obteniendo test {test_id} desde Firebase: {e}")
+                return None
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
@@ -97,6 +131,20 @@ class GPTStressAnalyzer:
 
     def _get_historical_data(self, limit: int = 100) -> List[Dict]:
         """Obtiene datos históricos para análisis comparativo."""
+        if USE_FIREBASE:
+            try:
+                fb = FirestoreDatabase()
+                all_tests = fb.get_all_tests(limit=limit)
+                return [{
+                    'age': t.get('age'),
+                    'profession': t.get('profession'),
+                    'total_score': t.get('total_score'),
+                    'stress_level': t.get('stress_level')
+                } for t in all_tests]
+            except Exception as e:
+                logging.error(f"Error obteniendo datos históricos de Firebase: {e}")
+                return []
+
         with sqlite3.connect(self.db_path) as conn:
             df = pd.read_sql(f'''
                 SELECT age, profession, total_score, stress_level 
@@ -666,6 +714,15 @@ class GPTStressAnalyzer:
 
     def save_gpt_analysis(self, test_id: int, analysis: Dict) -> None:
         """Guarda el análisis de GPT en la base de datos."""
+        if USE_FIREBASE:
+            try:
+                fb = FirestoreDatabase()
+                fb.save_gpt_analysis(test_id, analysis)
+                logging.info(f"Análisis GPT guardado en Firebase para test_id {test_id}")
+                return
+            except Exception as e:
+                logging.error(f"Error guardando análisis GPT en Firebase: {e}")
+                raise
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
