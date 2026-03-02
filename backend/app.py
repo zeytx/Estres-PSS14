@@ -44,16 +44,21 @@ app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True  # Para debugging
 os.makedirs('../datos', exist_ok=True)
 os.makedirs('../modelos', exist_ok=True)
 os.makedirs('../logs', exist_ok=True)
-# Entrenar el modelo cuando se inicia la aplicación
+# Cargar modelo pre-entrenado (NO re-entrenar en cada inicio)
+# El modelo se entrena localmente con: python -c "from ml_extension import StressPredictor; s=StressPredictor(); s.train_model(force_retrain=True)"
+# y los archivos .joblib se suben al repo para que Render los use directamente.
 try:
-    print("Entrenando modelo de predicción de estrés...")
-    result = stress_predictor.train_model()
-    if isinstance(result, dict) and 'status' in result and result['status'] == 'success':
-        print(f"Modelo entrenado con MAE: {result.get('mae', 'N/A')}")
+    if stress_predictor.model is not None:
+        print("✅ Modelo pre-entrenado cargado exitosamente")
     else:
-        print(f"Entrenamiento del modelo: {result}")
+        print("⚠️ No se encontró modelo pre-entrenado. Intentando entrenar...")
+        result = stress_predictor.train_model()
+        if isinstance(result, dict) and result.get('status') == 'success':
+            print(f"Modelo entrenado con MAE: {result.get('metrics', {}).get('mae', 'N/A')}")
+        else:
+            print(f"Entrenamiento del modelo: {result}")
 except Exception as e:
-    print(f"Error entrenando modelo: {str(e)}")
+    print(f"⚠️ Error cargando/entrenando modelo: {str(e)} - Las predicciones ML no estarán disponibles")
 
 
 
