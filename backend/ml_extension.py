@@ -301,70 +301,126 @@ class StressPredictor:
             
         return True
     
-    def _prepare_data(self) -> Tuple[pd.DataFrame, pd.Series]:
-        """Prepara datos para entrenamiento con validación robusta"""
+    def _load_data_from_source(self):
+        """Carga datos desde SQLite o Firebase Firestore"""
+
+        # Intentar SQLite primero
+        if os.path.exists(self.db_path):
+            try:
+                conn = sqlite3.connect(self.db_path)
+                count = conn.execute("SELECT COUNT(*) FROM tests").fetchone()[0]
+                logger.info(f"SQLite: {count} tests encontrados")
+
+                tests_df = pd.read_sql("""
+                    SELECT test_id, age, profession, total_score
+                    FROM tests
+                    WHERE age BETWEEN 10 AND 120
+                    AND total_score BETWEEN 0 AND 56
+                """, conn)
+
+                responses_df = pd.read_sql("""
+                    SELECT test_id, question_number, processed_value
+                    FROM responses
+                    WHERE processed_value BETWEEN 0 AND 4
+                    ORDER BY test_id, question_number
+                """, conn)
+
+                conn.close()
+
+                if not tests_df.empty and not responses_df.empty:
+                    tests_df = self._clean_professions(tests_df)
+                    logger.info(f"Datos cargados desde SQLite: {len(tests_df)} tests, {len(responses_df)} respuestas")
+                    return tests_df, responses_df
+            except Exception as e:
+                logger.warning(f"Error leyendo SQLite: {e}")
+
+        # Fallback: Firebase Firestore
         try:
-            conn = sqlite3.connect(self.db_path)
+            from firebase_config import USE_FIREBASE, FirestoreDatabase
+            if USE_FIREBASE:
+                logger.info("Cargando datos desde Firebase Firestore...")
+                fb = FirestoreDatabase()
+                all_tests = fb.get_all_tests(limit=2000)
 
-            # Añadir este log para saber cuántos registros hay en total
-            count_query = "SELECT COUNT(*) FROM tests"
-            total_tests = conn.execute(count_query).fetchone()[0]
-            logger.info(f"Total de tests en la base de datos: {total_tests}")
-            
-            # Consulta con manejo de errores
-            tests_query = """
-                SELECT test_id, age, profession, total_score 
-                FROM tests 
-                WHERE age BETWEEN 10 AND 120 
-                AND total_score BETWEEN 0 AND 56
-            """
+                if not all_tests:
+                    logger.warning("Firebase: No se encontraron tests")
+                    return None, None
 
-            
-            tests_df = pd.read_sql(tests_query, conn)
-            
+                # Convertir a DataFrames con el mismo formato que SQLite
+                tests_rows = []
+                responses_rows = []
 
-            def clean_profession(prof):
-                if not isinstance(prof, str):
-                    return 'unknown'
-                
-                # Casos especiales de concatenación
-                prof = prof.replace('IngenieroIngeniero', 'Ingeniero')
-                prof = prof.replace('ComunicaciónComunicación', 'Comunicación')
-                
-                # Separar por mayúsculas (camelCase)
-                prof = ' '.join(re.findall('[A-Z][^A-Z]*', prof))
-                
-                # Tomar solo la primera profesión si hay múltiples
-                prof = prof.split(',')[0].split(';')[0].split('/')[0]
-                
-                # Normalización básica
-                prof = prof.strip().title()
-                
-                return prof[:30] if len(prof) >= 2 else 'unknown'
+                for test in all_tests:
+                    test_id = test.get('test_id')
+                    age = test.get('age')
+                    profession = test.get('profession')
+                    total_score = test.get('total_score')
 
-            # Aplicar limpieza de profesiones
-            logger.info("Aplicando limpieza de profesiones...")
-            tests_df['profession'] = tests_df['profession'].apply(clean_profession)
+                    if not all([test_id, age, profession, total_score is not None]):
+                        continue
+                    if not (10 <= age <= 120) or not (0 <= total_score <= 56):
+                        continue
 
-            tests_df = tests_df[tests_df['profession'] != 'unknown']
+                    tests_rows.append({
+                        'test_id': test_id,
+                        'age': age,
+                        'profession': profession,
+                        'total_score': total_score
+                    })
 
-            responses_query = """
-                SELECT test_id, question_number, processed_value 
-                FROM responses 
-                WHERE processed_value BETWEEN 0 AND 4
-                ORDER BY test_id, question_number
-            """
-            responses_df = pd.read_sql(responses_query, conn)
+                    # Extraer respuestas embebidas
+                    responses = test.get('responses', [])
+                    for resp in responses:
+                        pv = resp.get('processed_value')
+                        qn = resp.get('question_number')
+                        if pv is not None and qn is not None and 0 <= pv <= 4:
+                            responses_rows.append({
+                                'test_id': test_id,
+                                'question_number': qn,
+                                'processed_value': pv
+                            })
 
-            # Añadir estos logs para ver cuántos datos quedan después de los filtros
-            logger.info(f"Tests después del filtro: {len(tests_df)}")
-            logger.info(f"Respuestas después del filtro: {len(responses_df)}")
-            logger.info(f"Respuestas test_ids únicos: {responses_df['test_id'].nunique()}")
+                tests_df = pd.DataFrame(tests_rows)
+                responses_df = pd.DataFrame(responses_rows)
 
-            conn.close()
-            
-            if tests_df.empty or responses_df.empty:
-                logger.warning("Datos vacíos en la base de datos")
+                if not tests_df.empty:
+                    tests_df = self._clean_professions(tests_df)
+                    logger.info(f"Datos cargados desde Firebase: {len(tests_df)} tests, {len(responses_df)} respuestas")
+
+                return tests_df, responses_df
+        except Exception as e:
+            logger.warning(f"Error leyendo Firebase: {e}")
+
+        logger.error("No se pudieron cargar datos de ninguna fuente")
+        return None, None
+
+    def _clean_professions(self, tests_df):
+        """Limpia y normaliza las profesiones"""
+        def clean_profession(prof):
+            if not isinstance(prof, str):
+                return 'unknown'
+            prof = prof.replace('IngenieroIngeniero', 'Ingeniero')
+            prof = prof.replace('ComunicacionComunicacion', 'Comunicacion')
+            prof = ' '.join(re.findall('[A-Z][^A-Z]*', prof))
+            prof = prof.split(',')[0].split(';')[0].split('/')[0]
+            prof = prof.strip().title()
+            return prof[:30] if len(prof) >= 2 else 'unknown'
+
+        logger.info("Aplicando limpieza de profesiones...")
+        tests_df['profession'] = tests_df['profession'].apply(clean_profession)
+        tests_df = tests_df[tests_df['profession'] != 'unknown']
+        logger.info(f"Tests despues de limpieza de profesiones: {len(tests_df)}")
+        return tests_df
+
+    def _prepare_data(self) -> Tuple[pd.DataFrame, pd.Series]:
+        """Prepara datos para entrenamiento con validacion robusta.
+        Soporta SQLite (local) y Firebase Firestore (produccion)."""
+        try:
+            # Intentar cargar datos desde SQLite primero
+            tests_df, responses_df = self._load_data_from_source()
+
+            if tests_df is None or tests_df.empty or responses_df is None or responses_df.empty:
+                logger.warning("Datos vacios en la base de datos")
                 return None, None
             
             # Verificar integridad de respuestas por test
